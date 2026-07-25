@@ -25,6 +25,8 @@
     .badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; }
     .badge.billable { background: #e74c3c22; color: #e74c3c; }
     .badge.free { background: #2ecc7122; color: #2ecc71; }
+    .badge.review { background: #f39c1222; color: #f39c12; }
+    tr.needs-review { box-shadow: inset 3px 0 0 #f39c12; }
     .section-title { font-size: 18px; font-weight: bold; margin-bottom: 16px; color: #fff; }
     .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: bold; }
     .btn-primary { background: #4f8ef7; color: #fff; }
@@ -183,7 +185,7 @@
       secRate: "Rate Settings", rateCard: "⚙️ MLIT Demurrage Rate", lblGrace: "Grace Period (free)", lblRate: "Rate per 30 min increment",
       btnSaveRate: "Save Rate Settings", rateSaved: "✅ Saved!", noRecords: "No records found.", noWh: "No warehouses registered yet.",
       thWh: "Warehouse", thEntry: "Entry Time", thExit: "Exit Time", thTotal: "Total Wait", thBill: "Billable", thStat: "Status", thFee: "Fee",
-      thName: "Name", thLat: "Latitude", thLng: "Longitude", thAction: "Action", btnDelete: "Delete", statBill: "Billable", statFree: "Free",
+      thName: "Name", thLat: "Latitude", thLng: "Longitude", thAction: "Action", btnDelete: "Delete", statBill: "Billable", statFree: "Free", statReview: "⚠ Needs Review",
       alertFill: "Please fill in all fields correctly", alertAdded: "Warehouse added!", alertDel: "Delete this warehouse?",
       loginTitle: "WaitTime Manager", loginSub: "Dispatcher Dashboard", loginBtn: "Sign In", loginErr: "Invalid email or password",
       lblMin: "min"
@@ -199,7 +201,7 @@
       secRate: "料金体系設定", rateCard: "⚙️ 国交省（MLIT）標準待機時間設定", lblGrace: "免責時間（無料分）", lblRate: "30分毎の加算料金",
       btnSaveRate: "設定を保存", rateSaved: "✅ 保存しました！", noRecords: "記録が見つかりません。", noWh: "登録された倉庫はありません。",
       thWh: "拠点名", thEntry: "入場時間", thExit: "退場時間", thTotal: "総待機", thBill: "請求対象", thStat: "ステータス", thFee: "料金",
-      thName: "拠点名", thLat: "緯度", thLng: "経度", thAction: "操作", btnDelete: "削除", statBill: "請求対象", statFree: "無料",
+      thName: "拠点名", thLat: "緯度", thLng: "経度", thAction: "操作", btnDelete: "削除", statBill: "請求対象", statFree: "無料", statReview: "⚠ 要確認",
       alertFill: "すべての項目を正しく入力してください", alertAdded: "倉庫を追加しました！", alertDel: "この倉庫を削除しますか？",
       loginTitle: "待機時間マネージャー", loginSub: "運行管理者ダッシュボード", loginBtn: "ログイン", loginErr: "メールアドレスまたはパスワードが無効です",
       lblMin: "分"
@@ -375,14 +377,19 @@
         <th>${t.thFee}</th>
       </tr></thead>
       <tbody>${logs.map(l => {
-        const badgeLabel = l.fee > 0 ? t.statBill : t.statFree;
-        return `<tr>
+        // A wait with no matching schedule was flagged by the app (needs_review);
+        // older logs predating that field are caught by the missing schedule_id.
+        const needsReview = l.needs_review === true || !l.schedule_id;
+        const statusBadge = needsReview
+          ? `<span class="badge review">${t.statReview}</span>`
+          : `<span class="badge ${l.fee > 0 ? 'billable' : 'free'}">${l.fee > 0 ? t.statBill : t.statFree}</span>`;
+        return `<tr class="${needsReview ? 'needs-review' : ''}">
           <td>${l.warehouse_name || '-'}</td>
           <td>${l.entry_time ? new Date(l.entry_time.seconds * 1000).toLocaleString('ja-JP') : '-'}</td>
           <td>${l.exit_time ? new Date(l.exit_time.seconds * 1000).toLocaleString('ja-JP') : '-'}</td>
           <td>${l.total_wait_minutes || 0} ${t.lblMin}</td>
           <td>${l.billable_minutes ?? l.total_wait_minutes ?? 0} ${t.lblMin}</td>
-          <td><span class="badge ${l.fee > 0 ? 'billable' : 'free'}">${badgeLabel}</span></td>
+          <td>${statusBadge}</td>
           <td style="color:${l.fee > 0 ? '#e74c3c' : '#2ecc71'};font-weight:bold">${l.fee > 0 ? '¥' + l.fee.toLocaleString() : '¥0'}</td>
         </tr>`
       }).join('')}</tbody>
