@@ -55,26 +55,32 @@
 <div id="login-screen" class="login-screen">
   <div class="login-card">
     <div style="font-size:48px;margin-bottom:16px">🚛</div>
-    <h2>待機時間マネージャー</h2>
-    <p>Dispatcher Dashboard</p>
+    <h2 id="t-login-title">待機時間マネージャー</h2>
+    <p id="t-login-sub">Dispatcher Dashboard</p>
     <div id="login-error" class="error" style="display:none"></div>
     <input type="email" id="login-email" placeholder="Email" />
     <input type="password" id="login-password" placeholder="Password" />
-    <button onclick="doLogin()">Sign In</button>
+    <button id="t-login-btn" onclick="doLogin()">Sign In</button>
   </div>
 </div>
 
 <div id="app-screen" style="display:none">
   <div class="header">
-    <h1>🚛 待機時間マネージャー | Dispatcher Dashboard</h1>
-    <span id="user-email"></span>
+    <h1 id="t-main-title">🚛 待機時間マネージャー | Dispatcher Dashboard</h1>
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <span id="user-email"></span>
+      <select id="langSelector" onchange="switchLanguage(this.value)" style="background-color: #1a202c; color: #e2e8f0; border: 1px solid #4a5568; padding: 6px 12px; border-radius: 6px; font-size: 14px; cursor: pointer; outline: none;">
+        <option value="ja">日本語</option>
+        <option value="en">English</option>
+      </select>
+    </div>
   </div>
   <div class="nav">
-    <button class="active" onclick="showTab('overview')">📊 Overview</button>
-    <button onclick="showTab('logs')">📋 Wait Logs</button>
-    <button onclick="showTab('warehouses')">📦 Warehouses</button>
-    <button onclick="showTab('settings')">⚙️ Settings</button>
-    <button onclick="doLogout()" style="margin-left:auto;color:#e74c3c;border-color:#e74c3c">Sign Out</button>
+    <button class="active" id="nav-overview" onclick="showTab('overview')">📊 Overview</button>
+    <button id="nav-logs" onclick="showTab('logs')">📋 Wait Logs</button>
+    <button id="nav-warehouses" onclick="showTab('warehouses')">📦 Warehouses</button>
+    <button id="nav-settings" onclick="showTab('settings')">⚙️ Settings</button>
+    <button id="nav-signout" onclick="doLogout()" style="margin-left:auto;color:#e74c3c;border-color:#e74c3c">Sign Out</button>
   </div>
 
   <div class="container">
@@ -82,63 +88,63 @@
     <div id="tab-overview" class="tab active">
       <div class="cards">
         <div class="card">
-          <h3>Total Wait Logs</h3>
+          <h3 id="t-card-logs">Total Wait Logs</h3>
           <div class="value" id="stat-total">-</div>
-          <div class="sub">all time</div>
+          <div class="sub" id="t-card-logs-sub">all time</div>
         </div>
         <div class="card">
-          <h3>Total Billable Time</h3>
+          <h3 id="t-card-time">Total Billable Time</h3>
           <div class="value" id="stat-minutes">-</div>
-          <div class="sub">minutes</div>
+          <div class="sub" id="t-card-time-sub">minutes</div>
         </div>
         <div class="card">
-          <h3>Total Fees</h3>
+          <h3 id="t-card-fees">Total Fees</h3>
           <div class="value" id="stat-fees">-</div>
-          <div class="sub">¥ demurrage</div>
+          <div class="sub" id="t-card-fees-sub">¥ demurrage</div>
         </div>
         <div class="card">
-          <h3>Registered Warehouses</h3>
+          <h3 id="t-card-wh">Registered Warehouses</h3>
           <div class="value" id="stat-warehouses">-</div>
-          <div class="sub">geofence zones</div>
+          <div class="sub" id="t-card-wh-sub">geofence zones</div>
         </div>
       </div>
-      <p class="section-title">Recent Wait Logs</p>
+      <p class="section-title" id="t-sec-recent">Recent Wait Logs</p>
       <div id="overview-logs"><div class="loading">Loading...</div></div>
     </div>
 
     <div id="tab-logs" class="tab">
-      <p class="section-title">All Wait Logs</p>
+      <p class="section-title" id="t-sec-all">All Wait Logs</p>
       <div class="btn-row">
-        <button class="btn btn-success" onclick="exportCSV()">⬇️ Export CSV</button>
+        <button class="btn btn-success" id="btn-export" onclick="exportCSV()">⬇️ Export CSV</button>
       </div>
       <div id="all-logs"><div class="loading">Loading...</div></div>
     </div>
 
     <div id="tab-warehouses" class="tab">
-      <p class="section-title">Registered Warehouses</p>
+      <p class="section-title" id="t-sec-reg-wh">Registered Warehouses</p>
       <div class="warehouse-form">
-        <h3>➕ Add New Warehouse</h3>
+        <h3 id="t-add-wh">➕ Add New Warehouse</h3>
         <input type="text" id="w-name" placeholder="Warehouse name" />
         <input type="number" id="w-lat" placeholder="Latitude (e.g. 35.6762)" step="0.0001" />
         <input type="number" id="w-lng" placeholder="Longitude (e.g. 139.6503)" step="0.0001" />
-        <button class="btn btn-primary" onclick="addWarehouse()">Add Warehouse</button>
+        <button class="btn btn-primary" id="btn-add-wh" onclick="addWarehouse()">Add Warehouse</button>
       </div>
       <div id="warehouse-list"><div class="loading">Loading...</div></div>
     </div>
 
     <div id="tab-settings" class="tab">
-      <p class="section-title">Rate Settings</p>
+      <p class="section-title" id="t-sec-rate">Rate Settings</p>
       <div class="rate-card">
-        <h3>⚙️ MLIT Demurrage Rate</h3>
+        <h3 id="t-rate-card">⚙️ MLIT Demurrage Rate</h3>
         <div class="rate-input">
-          <label>Grace Period (free)</label>
-          <input type="number" id="rate-grace" value="30" /> min
+          <label id="t-lbl-grace">Grace Period (free)</label>
+          <input type="number" id="rate-grace" value="30" /> <span id="txt-min-1" style="color:#a0a0b0; font-size:14px; margin-left:8px;">min</span>
         </div>
         <div class="rate-input">
-          <label>Rate per 30 min increment</label>
+          <label id="t-lbl-rate">Rate per 30 min increment</label>
           ¥<input type="number" id="rate-amount" value="1670" />
         </div>
-        <button class="btn btn-primary" onclick="saveRate()">Save Rate Settings</button>
+        <button class="btn btn-primary" id="btn-save-rate" onclick="saveRate()">Save Rate Settings</button>
         <p style="color:#2ecc71;font-size:13px;margin-top:8px;display:none" id="rate-saved">✅ Saved!</p>
       </div>
     </div>
@@ -164,6 +170,118 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
+  // --- TRANSLATION DICTIONARY & LOGIC ---
+  const tDict = {
+    en: {
+      appTitle: "🚛 WaitTime Manager | Dispatcher Dashboard",
+      navOverview: "📊 Overview", navLogs: "📋 Wait Logs", navWarehouses: "📦 Warehouses", navSettings: "⚙️ Settings", btnSignOut: "Sign Out",
+      cardLogs: "Total Wait Logs", cardLogsSub: "all time", cardTime: "Total Billable Time", cardTimeSub: "minutes",
+      cardFees: "Total Fees", cardFeesSub: "¥ demurrage", cardWh: "Registered Warehouses", cardWhSub: "geofence zones",
+      secRecent: "Recent Wait Logs", secAll: "All Wait Logs", btnExport: "⬇️ Export CSV",
+      secRegWh: "Registered Warehouses", addWh: "➕ Add New Warehouse",
+      pName: "Warehouse name", pLat: "Latitude (e.g. 35.6762)", pLng: "Longitude (e.g. 139.6503)", btnAddWh: "Add Warehouse",
+      secRate: "Rate Settings", rateCard: "⚙️ MLIT Demurrage Rate", lblGrace: "Grace Period (free)", lblRate: "Rate per 30 min increment",
+      btnSaveRate: "Save Rate Settings", rateSaved: "✅ Saved!", noRecords: "No records found.", noWh: "No warehouses registered yet.",
+      thWh: "Warehouse", thEntry: "Entry Time", thExit: "Exit Time", thTotal: "Total Wait", thBill: "Billable", thStat: "Status", thFee: "Fee",
+      thName: "Name", thLat: "Latitude", thLng: "Longitude", thAction: "Action", btnDelete: "Delete", statBill: "Billable", statFree: "Free",
+      alertFill: "Please fill in all fields correctly", alertAdded: "Warehouse added!", alertDel: "Delete this warehouse?",
+      loginTitle: "WaitTime Manager", loginSub: "Dispatcher Dashboard", loginBtn: "Sign In", loginErr: "Invalid email or password",
+      lblMin: "min"
+    },
+    ja: {
+      appTitle: "🚛 待機時間マネージャー | 運行管理者ダッシュボード",
+      navOverview: "📊 概要", navLogs: "📋 待機記録", navWarehouses: "📦 倉庫管理", navSettings: "⚙️ 料金設定", btnSignOut: "ログアウト",
+      cardLogs: "通算待機回数", cardLogsSub: "全期間", cardTime: "合計請求対象時間", cardTimeSub: "分",
+      cardFees: "合計待機料金", cardFeesSub: "徴収金額", cardWh: "登録済み倉庫数", cardWhSub: "ジオフェンス対象",
+      secRecent: "最近の待機記録", secAll: "すべての待機記録", btnExport: "⬇️ CSVエクスポート",
+      secRegWh: "登録済み倉庫一覧", addWh: "➕ 新しい倉庫を追加",
+      pName: "倉庫名", pLat: "緯度 (例: 35.6762)", pLng: "経度 (例: 139.6503)", btnAddWh: "倉庫を追加",
+      secRate: "料金体系設定", rateCard: "⚙️ 国交省（MLIT）標準待機時間設定", lblGrace: "免責時間（無料分）", lblRate: "30分毎の加算料金",
+      btnSaveRate: "設定を保存", rateSaved: "✅ 保存しました！", noRecords: "記録が見つかりません。", noWh: "登録された倉庫はありません。",
+      thWh: "拠点名", thEntry: "入場時間", thExit: "退場時間", thTotal: "総待機", thBill: "請求対象", thStat: "ステータス", thFee: "料金",
+      thName: "拠点名", thLat: "緯度", thLng: "経度", thAction: "操作", btnDelete: "削除", statBill: "請求対象", statFree: "無料",
+      alertFill: "すべての項目を正しく入力してください", alertAdded: "倉庫を追加しました！", alertDel: "この倉庫を削除しますか？",
+      loginTitle: "待機時間マネージャー", loginSub: "運行管理者ダッシュボード", loginBtn: "ログイン", loginErr: "メールアドレスまたはパスワードが無効です",
+      lblMin: "分"
+    }
+  };
+
+  window.currentLang = localStorage.getItem('dashboard_lang') || 'ja';
+  
+  window.switchLanguage = (lang) => {
+    window.currentLang = lang;
+    localStorage.setItem('dashboard_lang', lang);
+    applyTranslations();
+    // Re-render dynamically generated tables immediately
+    if(window._allLogs) {
+      document.getElementById('overview-logs').innerHTML = buildTable(window._allLogs.slice(0, 10));
+      document.getElementById('all-logs').innerHTML = buildTable(window._allLogs);
+    }
+    if(window._allWarehouses) {
+      renderWarehouses(window._allWarehouses);
+    }
+  };
+
+  function applyTranslations() {
+    const t = tDict[window.currentLang];
+    
+    // Login Screen
+    document.getElementById('t-login-title').innerText = t.loginTitle;
+    document.getElementById('t-login-sub').innerText = t.loginSub;
+    document.getElementById('t-login-btn').innerText = t.loginBtn;
+    if(document.getElementById('login-error').style.display === 'block') {
+      document.getElementById('login-error').innerText = t.loginErr;
+    }
+
+    // App Header & Nav
+    document.getElementById('t-main-title').innerText = t.appTitle;
+    document.getElementById('nav-overview').innerText = t.navOverview;
+    document.getElementById('nav-logs').innerText = t.navLogs;
+    document.getElementById('nav-warehouses').innerText = t.navWarehouses;
+    document.getElementById('nav-settings').innerText = t.navSettings;
+    document.getElementById('nav-signout').innerText = t.btnSignOut;
+
+    // Overview Stats
+    document.getElementById('t-card-logs').innerText = t.cardLogs;
+    document.getElementById('t-card-logs-sub').innerText = t.cardLogsSub;
+    document.getElementById('t-card-time').innerText = t.cardTime;
+    document.getElementById('t-card-time-sub').innerText = t.cardTimeSub;
+    document.getElementById('t-card-fees').innerText = t.cardFees;
+    document.getElementById('t-card-fees-sub').innerText = t.cardFeesSub;
+    document.getElementById('t-card-wh').innerText = t.cardWh;
+    document.getElementById('t-card-wh-sub').innerText = t.cardWhSub;
+    document.getElementById('t-sec-recent').innerText = t.secRecent;
+
+    // Logs Tab
+    document.getElementById('t-sec-all').innerText = t.secAll;
+    document.getElementById('btn-export').innerText = t.btnExport;
+
+    // Warehouses Tab
+    document.getElementById('t-sec-reg-wh').innerText = t.secRegWh;
+    document.getElementById('t-add-wh').innerText = t.addWh;
+    document.getElementById('w-name').placeholder = t.pName;
+    document.getElementById('w-lat').placeholder = t.pLat;
+    document.getElementById('w-lng').placeholder = t.pLng;
+    document.getElementById('btn-add-wh').innerText = t.btnAddWh;
+
+    // Settings Tab
+    document.getElementById('t-sec-rate').innerText = t.secRate;
+    document.getElementById('t-rate-card').innerText = t.rateCard;
+    document.getElementById('t-lbl-grace').innerText = t.lblGrace;
+    document.getElementById('t-lbl-rate').innerText = t.lblRate;
+    document.getElementById('txt-min-1').innerText = t.lblMin;
+    document.getElementById('btn-save-rate').innerText = t.btnSaveRate;
+    document.getElementById('rate-saved').innerText = t.rateSaved;
+  }
+
+  // Initialize selector on load
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById('langSelector').value = window.currentLang;
+    applyTranslations();
+  });
+
+  // --- CORE APP LOGIC ---
+
   onAuthStateChanged(auth, (user) => {
     if (user) {
       document.getElementById('login-screen').style.display = 'none';
@@ -179,11 +297,12 @@
   window.doLogin = async () => {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
+    const t = tDict[window.currentLang];
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (e) {
       const el = document.getElementById('login-error');
-      el.textContent = 'Invalid email or password';
+      el.textContent = t.loginErr;
       el.style.display = 'block';
     }
   };
@@ -237,62 +356,71 @@
     document.getElementById('stat-minutes').textContent = totalMinutes;
     document.getElementById('stat-fees').textContent = '¥' + totalFees.toLocaleString();
 
+    window._allLogs = logs;
     document.getElementById('overview-logs').innerHTML = buildTable(logs.slice(0, 10));
     document.getElementById('all-logs').innerHTML = buildTable(logs);
-    window._allLogs = logs;
   }
 
   function buildTable(logs) {
-    if (logs.length === 0) return '<p style="color:#a0a0b0;padding:20px">No records found.</p>';
+    const t = tDict[window.currentLang];
+    if (logs.length === 0) return `<p style="color:#a0a0b0;padding:20px">${t.noRecords}</p>`;
     return `<table>
       <thead><tr>
-        <th>Warehouse</th>
-        <th>Entry Time</th>
-        <th>Exit Time</th>
-        <th>Total Wait</th>
-        <th>Billable</th>
-        <th>Status</th>
-        <th>Fee</th>
+        <th>${t.thWh}</th>
+        <th>${t.thEntry}</th>
+        <th>${t.thExit}</th>
+        <th>${t.thTotal}</th>
+        <th>${t.thBill}</th>
+        <th>${t.thStat}</th>
+        <th>${t.thFee}</th>
       </tr></thead>
-      <tbody>${logs.map(l => `<tr>
-        <td>${l.warehouse_name || '-'}</td>
-        <td>${l.entry_time ? new Date(l.entry_time.seconds * 1000).toLocaleString('ja-JP') : '-'}</td>
-        <td>${l.exit_time ? new Date(l.exit_time.seconds * 1000).toLocaleString('ja-JP') : '-'}</td>
-        <td>${l.total_wait_minutes || 0} min</td>
-        <td>${l.billable_minutes ?? l.total_wait_minutes ?? 0} min</td>
-        <td><span class="badge ${l.fee > 0 ? 'billable' : 'free'}">${l.fee > 0 ? 'Billable' : 'Free'}</span></td>
-        <td style="color:${l.fee > 0 ? '#e74c3c' : '#2ecc71'};font-weight:bold">${l.fee > 0 ? '¥' + l.fee.toLocaleString() : '¥0'}</td>
-      </tr>`).join('')}</tbody>
+      <tbody>${logs.map(l => {
+        const badgeLabel = l.fee > 0 ? t.statBill : t.statFree;
+        return `<tr>
+          <td>${l.warehouse_name || '-'}</td>
+          <td>${l.entry_time ? new Date(l.entry_time.seconds * 1000).toLocaleString('ja-JP') : '-'}</td>
+          <td>${l.exit_time ? new Date(l.exit_time.seconds * 1000).toLocaleString('ja-JP') : '-'}</td>
+          <td>${l.total_wait_minutes || 0} ${t.lblMin}</td>
+          <td>${l.billable_minutes ?? l.total_wait_minutes ?? 0} ${t.lblMin}</td>
+          <td><span class="badge ${l.fee > 0 ? 'billable' : 'free'}">${badgeLabel}</span></td>
+          <td style="color:${l.fee > 0 ? '#e74c3c' : '#2ecc71'};font-weight:bold">${l.fee > 0 ? '¥' + l.fee.toLocaleString() : '¥0'}</td>
+        </tr>`
+      }).join('')}</tbody>
     </table>`;
   }
 
   async function loadWarehouses() {
     const snap = await getDocs(collection(db, 'warehouses'));
     const warehouses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    window._allWarehouses = warehouses;
     document.getElementById('stat-warehouses').textContent = warehouses.length;
+    renderWarehouses(warehouses);
+  }
 
+  function renderWarehouses(warehouses) {
+    const t = tDict[window.currentLang];
     if (warehouses.length === 0) {
-      document.getElementById('warehouse-list').innerHTML = '<p style="color:#a0a0b0">No warehouses registered yet.</p>';
+      document.getElementById('warehouse-list').innerHTML = `<p style="color:#a0a0b0;padding:20px">${t.noWh}</p>`;
       return;
     }
-
     document.getElementById('warehouse-list').innerHTML = `<table>
-      <thead><tr><th>Name</th><th>Latitude</th><th>Longitude</th><th>Action</th></tr></thead>
+      <thead><tr><th>${t.thName}</th><th>${t.thLat}</th><th>${t.thLng}</th><th>${t.thAction}</th></tr></thead>
       <tbody>${warehouses.map(w => `<tr>
         <td>${w.name}</td>
         <td>${w.lat}</td>
         <td>${w.lng}</td>
-        <td><button class="btn" style="background:#e74c3c22;color:#e74c3c;border:1px solid #e74c3c" onclick="deleteWarehouse('${w.id}')">Delete</button></td>
+        <td><button class="btn" style="background:#e74c3c22;color:#e74c3c;border:1px solid #e74c3c" onclick="deleteWarehouse('${w.id}')">${t.btnDelete}</button></td>
       </tr>`).join('')}</tbody>
     </table>`;
   }
 
   window.addWarehouse = async () => {
+    const t = tDict[window.currentLang];
     const name = document.getElementById('w-name').value.trim();
     const lat = parseFloat(document.getElementById('w-lat').value);
     const lng = parseFloat(document.getElementById('w-lng').value);
     if (!name || isNaN(lat) || isNaN(lng)) {
-      alert('Please fill in all fields correctly');
+      alert(t.alertFill);
       return;
     }
     await addDoc(collection(db, 'warehouses'), { name, lat, lng });
@@ -300,19 +428,23 @@
     document.getElementById('w-lat').value = '';
     document.getElementById('w-lng').value = '';
     await loadWarehouses();
-    alert('Warehouse added!');
+    alert(t.alertAdded);
   };
 
   window.deleteWarehouse = async (id) => {
-    if (confirm('Delete this warehouse?')) {
+    const t = tDict[window.currentLang];
+    if (confirm(t.alertDel)) {
       await deleteDoc(doc(db, 'warehouses', id));
       await loadWarehouses();
     }
   };
 
   window.exportCSV = () => {
+    const t = tDict[window.currentLang];
     const logs = window._allLogs || [];
-    const rows = [['Warehouse', 'Entry Time', 'Exit Time', 'Total Minutes', 'Billable Minutes', 'Fee (¥)']];
+    // Dynamic headers based on current language
+    const rows = [[t.thWh, t.thEntry, t.thExit, t.thTotal, t.thBill, t.thFee]];
+    
     logs.forEach(l => {
       rows.push([
         l.warehouse_name || '',
