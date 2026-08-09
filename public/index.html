@@ -150,6 +150,10 @@
           <label id="t-lbl-rate">Rate per Increment</label>
           ¥<input type="number" id="rate-amount" value="1670" />
         </div>
+        <div class="rate-input">
+          <label id="t-lbl-radius">Geofence Radius</label>
+          <input type="number" id="rate-radius" value="500" /> <span id="txt-m-1" style="color:#a0a0b0; font-size:14px; margin-left:8px;">m</span>
+        </div>
         <button class="btn btn-primary" id="btn-save-rate" onclick="saveRate()">Save Rate Settings</button>
         <p style="color:#2ecc71;font-size:13px;margin-top:8px;display:none" id="rate-saved">✅ Saved!</p>
       </div>
@@ -186,7 +190,7 @@
       secRecent: "Recent Wait Logs", secAll: "All Wait Logs", btnExport: "⬇️ Export CSV",
       secRegWh: "Registered Warehouses", addWh: "➕ Add New Warehouse",
       pName: "Warehouse name", pLat: "Latitude (e.g. 35.6762)", pLng: "Longitude (e.g. 139.6503)", btnAddWh: "Add Warehouse",
-      secRate: "Rate Settings", rateCard: "⚙️ MLIT Demurrage Rate", lblGrace: "Grace Period (free)", lblIncrement: "Billing Increment", lblRate: "Rate per Increment",
+      secRate: "Rate Settings", rateCard: "⚙️ MLIT Demurrage Rate", lblGrace: "Grace Period (free)", lblIncrement: "Billing Increment", lblRate: "Rate per Increment", lblRadius: "Geofence Radius",
       btnSaveRate: "Save Rate Settings", rateSaved: "✅ Saved!", noRecords: "No records found.", noWh: "No warehouses registered yet.",
       thWh: "Warehouse", thEntry: "Entry Time", thExit: "Exit Time", thTotal: "Total Wait", thBill: "Billable", thStat: "Status", thFee: "Fee",
       thName: "Name", thLat: "Latitude", thLng: "Longitude", thAction: "Action", btnDelete: "Delete", statBill: "Billable", statFree: "Free", statReview: "⚠ Needs Review",
@@ -202,7 +206,7 @@
       secRecent: "最近の待機記録", secAll: "すべての待機記録", btnExport: "⬇️ CSVエクスポート",
       secRegWh: "登録済み倉庫一覧", addWh: "➕ 新しい倉庫を追加",
       pName: "倉庫名", pLat: "緯度 (例: 35.6762)", pLng: "経度 (例: 139.6503)", btnAddWh: "倉庫を追加",
-      secRate: "料金体系設定", rateCard: "⚙️ 国交省（MLIT）標準待機時間設定", lblGrace: "免責時間（無料分）", lblIncrement: "課金単位（分）", lblRate: "単位あたりの料金",
+      secRate: "料金体系設定", rateCard: "⚙️ 国交省（MLIT）標準待機時間設定", lblGrace: "免責時間（無料分）", lblIncrement: "課金単位（分）", lblRate: "単位あたりの料金", lblRadius: "ジオフェンス半径",
       btnSaveRate: "設定を保存", rateSaved: "✅ 保存しました！", noRecords: "記録が見つかりません。", noWh: "登録された倉庫はありません。",
       thWh: "拠点名", thEntry: "入場時間", thExit: "退場時間", thTotal: "総待機", thBill: "請求対象", thStat: "ステータス", thFee: "料金",
       thName: "拠点名", thLat: "緯度", thLng: "経度", thAction: "操作", btnDelete: "削除", statBill: "請求対象", statFree: "無料", statReview: "⚠ 要確認",
@@ -276,6 +280,7 @@
     document.getElementById('t-lbl-grace').innerText = t.lblGrace;
     document.getElementById('t-lbl-increment').innerText = t.lblIncrement;
     document.getElementById('t-lbl-rate').innerText = t.lblRate;
+    document.getElementById('t-lbl-radius').innerText = t.lblRadius;
     document.getElementById('txt-min-1').innerText = t.lblMin;
     document.getElementById('txt-min-2').innerText = t.lblMin;
     document.getElementById('btn-save-rate').innerText = t.btnSaveRate;
@@ -337,6 +342,7 @@
         document.getElementById('rate-grace').value = snap.data().gracePeriod || 30;
         document.getElementById('rate-increment').value = snap.data().incrementMinutes || 30;
         document.getElementById('rate-amount').value = snap.data().ratePerIncrement || 1670;
+        document.getElementById('rate-radius').value = snap.data().geofenceRadius || 500;
       }
     } catch(e) {}
   }
@@ -345,10 +351,12 @@
     const grace = parseInt(document.getElementById('rate-grace').value);
     const increment = parseInt(document.getElementById('rate-increment').value);
     const amount = parseInt(document.getElementById('rate-amount').value);
+    const radius = parseInt(document.getElementById('rate-radius').value);
     await setDoc(doc(db, 'settings', 'rate'), {
       gracePeriod: grace,
       incrementMinutes: increment,
       ratePerIncrement: amount,
+      geofenceRadius: radius,
       updatedAt: serverTimestamp()
     });
     document.getElementById('rate-saved').style.display = 'block';
