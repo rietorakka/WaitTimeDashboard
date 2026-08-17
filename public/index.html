@@ -50,6 +50,9 @@
     .warehouse-form h3 { font-size: 16px; font-weight: bold; margin-bottom: 16px; }
     .warehouse-form input { width: 100%; background: #0f0f1a; border: 1px solid #2a2a3e; border-radius: 8px; padding: 10px 12px; color: #fff; font-size: 14px; margin-bottom: 10px; }
     .loading { color: #a0a0b0; text-align: center; padding: 40px; }
+    .filter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .filter-row label { font-size: 14px; color: #a0a0b0; }
+    .filter-row select { background: #0f0f1a; border: 1px solid #2a2a3e; border-radius: 8px; padding: 8px 12px; color: #fff; font-size: 14px; min-width: 180px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -81,6 +84,7 @@
     <button class="active" id="nav-overview" onclick="showTab('overview')">📊 Overview</button>
     <button id="nav-logs" onclick="showTab('logs')">📋 Wait Logs</button>
     <button id="nav-warehouses" onclick="showTab('warehouses')">📦 Warehouses</button>
+    <button id="nav-drivers" onclick="showTab('drivers')">👤 Drivers</button>
     <button id="nav-settings" onclick="showTab('settings')">⚙️ Settings</button>
     <button id="nav-signout" onclick="doLogout()" style="margin-left:auto;color:#e74c3c;border-color:#e74c3c">Sign Out</button>
   </div>
@@ -111,12 +115,20 @@
         </div>
       </div>
       <p class="section-title" id="t-sec-recent">Recent Wait Logs</p>
+      <div class="filter-row">
+        <label id="t-flt-1">Driver:</label>
+        <select id="driver-filter-overview" onchange="applyDriverFilter(this.value)"></select>
+      </div>
       <div id="overview-logs"><div class="loading">Loading...</div></div>
     </div>
 
     <div id="tab-logs" class="tab">
       <p class="section-title" id="t-sec-all">All Wait Logs</p>
       <div class="btn-row">
+        <div class="filter-row" style="margin-bottom:0">
+          <label id="t-flt-2">Driver:</label>
+          <select id="driver-filter-logs" onchange="applyDriverFilter(this.value)"></select>
+        </div>
         <button class="btn btn-success" id="btn-export" onclick="exportCSV()">⬇️ Export CSV</button>
       </div>
       <div id="all-logs"><div class="loading">Loading...</div></div>
@@ -132,6 +144,20 @@
         <button class="btn btn-primary" id="btn-add-wh" onclick="addWarehouse()">Add Warehouse</button>
       </div>
       <div id="warehouse-list"><div class="loading">Loading...</div></div>
+    </div>
+
+    <div id="tab-drivers" class="tab">
+      <p class="section-title" id="t-sec-drivers">Drivers</p>
+      <div class="warehouse-form">
+        <h3 id="t-add-driver">➕ Register New Driver</h3>
+        <input type="text" id="d-name" placeholder="Driver name" />
+        <input type="email" id="d-email" placeholder="Login email" />
+        <input type="text" id="d-pass" placeholder="Temporary password" />
+        <p id="t-help-driver" style="color:#a0a0b0;font-size:12px;margin:-2px 0 10px">Tip: use Gmail plus-addressing so each driver has a unique login that reaches your inbox.</p>
+        <button class="btn btn-primary" id="btn-add-driver" onclick="addDriver()">Add Driver</button>
+        <p style="color:#2ecc71;font-size:13px;margin-top:8px;display:none" id="driver-added"></p>
+      </div>
+      <div id="driver-list"><div class="loading">Loading...</div></div>
     </div>
 
     <div id="tab-settings" class="tab">
@@ -164,7 +190,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
   import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -180,6 +206,13 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
+  // A SECOND Firebase app used only to create driver accounts. Creating a user
+  // signs you in AS that user on whichever app you used — so we do it on this
+  // separate "Secondary" app, leaving the dispatcher's own session (on `auth`)
+  // completely untouched.
+  const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+  const secondaryAuth = getAuth(secondaryApp);
+
   // --- TRANSLATION DICTIONARY & LOGIC ---
   const tDict = {
     en: {
@@ -192,11 +225,20 @@
       pName: "Warehouse name", pLat: "Latitude (e.g. 35.6762)", pLng: "Longitude (e.g. 139.6503)", btnAddWh: "Add Warehouse",
       secRate: "Rate Settings", rateCard: "⚙️ MLIT Demurrage Rate", lblGrace: "Grace Period (free)", lblIncrement: "Billing Increment", lblRate: "Rate per Increment", lblRadius: "Geofence Radius",
       btnSaveRate: "Save Rate Settings", rateSaved: "✅ Saved!", noRecords: "No records found.", noWh: "No warehouses registered yet.",
-      thWh: "Warehouse", thEntry: "Entry Time", thExit: "Exit Time", thTotal: "Total Wait", thBill: "Billable", thStat: "Status", thFee: "Fee",
+      thDriver: "Driver", thWh: "Warehouse", thEntry: "Entry Time", thExit: "Exit Time", thTotal: "Total Wait", thBill: "Billable", thStat: "Status", thFee: "Fee",
       thName: "Name", thLat: "Latitude", thLng: "Longitude", thAction: "Action", btnDelete: "Delete", statBill: "Billable", statFree: "Free", statReview: "⚠ Needs Review",
+      fltLabel: "Driver:", fltAll: "All drivers",
       alertFill: "Please fill in all fields correctly", alertAdded: "Warehouse added!", alertDel: "Delete this warehouse?",
       loginTitle: "WaitTime Manager", loginSub: "Dispatcher Dashboard", loginBtn: "Sign In", loginErr: "Invalid email or password",
-      lblMin: "min"
+      lblMin: "min",
+      navDrivers: "👤 Drivers", secDrivers: "Drivers", addDriverH: "➕ Register New Driver",
+      pDriverName: "Driver name", pDriverEmail: "Login email (e.g. you+driver1@gmail.com)", pDriverPass: "Temporary password (min 6 characters)",
+      helpDriver: "Tip: use Gmail plus-addressing (you+driver1@gmail.com) so each driver has a unique login that still reaches your inbox.",
+      btnAddDriver: "Add Driver", thRole: "Role", btnReset: "Send Reset Email", roleDriver: "Driver", noDrivers: "No drivers registered yet.",
+      driverAdded: "✅ Driver added. They can sign in with the temporary password, or use \"Send Reset Email\" so they set their own.",
+      resetSent: "Password reset email sent.", resetConfirm: "Send a password-reset email to this driver?",
+      alertDriverFields: "Please enter a name, a login email, and a temporary password of at least 6 characters.",
+      errEmailInUse: "That email is already registered.", errBadEmail: "That email address looks invalid.", errWeakPass: "Password must be at least 6 characters."
     },
     ja: {
       appTitle: "🚛 待機時間マネージャー | 運行管理者ダッシュボード",
@@ -208,15 +250,25 @@
       pName: "倉庫名", pLat: "緯度 (例: 35.6762)", pLng: "経度 (例: 139.6503)", btnAddWh: "倉庫を追加",
       secRate: "料金体系設定", rateCard: "⚙️ 国交省（MLIT）標準待機時間設定", lblGrace: "免責時間（無料分）", lblIncrement: "課金単位（分）", lblRate: "単位あたりの料金", lblRadius: "ジオフェンス半径",
       btnSaveRate: "設定を保存", rateSaved: "✅ 保存しました！", noRecords: "記録が見つかりません。", noWh: "登録された倉庫はありません。",
-      thWh: "拠点名", thEntry: "入場時間", thExit: "退場時間", thTotal: "総待機", thBill: "請求対象", thStat: "ステータス", thFee: "料金",
+      thDriver: "ドライバー", thWh: "拠点名", thEntry: "入場時間", thExit: "退場時間", thTotal: "総待機", thBill: "請求対象", thStat: "ステータス", thFee: "料金",
       thName: "拠点名", thLat: "緯度", thLng: "経度", thAction: "操作", btnDelete: "削除", statBill: "請求対象", statFree: "無料", statReview: "⚠ 要確認",
+      fltLabel: "ドライバー:", fltAll: "全ドライバー",
       alertFill: "すべての項目を正しく入力してください", alertAdded: "倉庫を追加しました！", alertDel: "この倉庫を削除しますか？",
       loginTitle: "待機時間マネージャー", loginSub: "運行管理者ダッシュボード", loginBtn: "ログイン", loginErr: "メールアドレスまたはパスワードが無効です",
-      lblMin: "分"
+      lblMin: "分",
+      navDrivers: "👤 ドライバー", secDrivers: "ドライバー", addDriverH: "➕ 新しいドライバーを登録",
+      pDriverName: "ドライバー名", pDriverEmail: "ログイン用メール (例: you+driver1@gmail.com)", pDriverPass: "仮パスワード（6文字以上）",
+      helpDriver: "ヒント: Gmailのプラスアドレス（you+driver1@gmail.com）を使うと、各ドライバー固有のログインでも受信は自分のinboxに届きます。",
+      btnAddDriver: "ドライバーを追加", thRole: "役割", btnReset: "リセットメール送信", roleDriver: "ドライバー", noDrivers: "登録されたドライバーはいません。",
+      driverAdded: "✅ ドライバーを追加しました。仮パスワードでログインするか、「リセットメール送信」で本人がパスワードを設定できます。",
+      resetSent: "パスワードリセットのメールを送信しました。", resetConfirm: "このドライバーにパスワードリセットのメールを送信しますか？",
+      alertDriverFields: "名前、ログイン用メール、6文字以上の仮パスワードを入力してください。",
+      errEmailInUse: "このメールアドレスは既に登録されています。", errBadEmail: "メールアドレスの形式が正しくありません。", errWeakPass: "パスワードは6文字以上にしてください。"
     }
   };
 
   window.currentLang = localStorage.getItem('dashboard_lang') || 'ja';
+  window._driverFilter = 'all'; // Wait Logs "filter by driver" selection ('all' = every driver)
   
   window.switchLanguage = (lang) => {
     window.currentLang = lang;
@@ -224,11 +276,14 @@
     applyTranslations();
     // Re-render dynamically generated tables immediately
     if(window._allLogs) {
-      document.getElementById('overview-logs').innerHTML = buildTable(window._allLogs.slice(0, 10));
-      document.getElementById('all-logs').innerHTML = buildTable(window._allLogs);
+      populateDriverFilters(window._allLogs);
+      renderLogTables();
     }
     if(window._allWarehouses) {
       renderWarehouses(window._allWarehouses);
+    }
+    if(window._allDrivers) {
+      renderDrivers(window._allDrivers);
     }
   };
 
@@ -265,6 +320,8 @@
     // Logs Tab
     document.getElementById('t-sec-all').innerText = t.secAll;
     document.getElementById('btn-export').innerText = t.btnExport;
+    document.getElementById('t-flt-1').innerText = t.fltLabel;
+    document.getElementById('t-flt-2').innerText = t.fltLabel;
 
     // Warehouses Tab
     document.getElementById('t-sec-reg-wh').innerText = t.secRegWh;
@@ -273,6 +330,16 @@
     document.getElementById('w-lat').placeholder = t.pLat;
     document.getElementById('w-lng').placeholder = t.pLng;
     document.getElementById('btn-add-wh').innerText = t.btnAddWh;
+
+    // Drivers Tab
+    document.getElementById('nav-drivers').innerText = t.navDrivers;
+    document.getElementById('t-sec-drivers').innerText = t.secDrivers;
+    document.getElementById('t-add-driver').innerText = t.addDriverH;
+    document.getElementById('d-name').placeholder = t.pDriverName;
+    document.getElementById('d-email').placeholder = t.pDriverEmail;
+    document.getElementById('d-pass').placeholder = t.pDriverPass;
+    document.getElementById('t-help-driver').innerText = t.helpDriver;
+    document.getElementById('btn-add-driver').innerText = t.btnAddDriver;
 
     // Settings Tab
     document.getElementById('t-sec-rate').innerText = t.secRate;
@@ -295,11 +362,17 @@
 
   // --- CORE APP LOGIC ---
 
-  onAuthStateChanged(auth, (user) => {
+  onAuthStateChanged(auth, async (user) => {
     if (user) {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app-screen').style.display = 'block';
       document.getElementById('user-email').textContent = user.email;
+      // Load the dispatcher's own record so we know their company_id (new
+      // drivers are created into the same company).
+      try {
+        const meSnap = await getDoc(doc(db, 'users', user.uid));
+        window._myProfile = meSnap.exists() ? meSnap.data() : null;
+      } catch (e) { window._myProfile = null; }
       loadAll();
     } else {
       document.getElementById('login-screen').style.display = 'flex';
@@ -332,6 +405,7 @@
   async function loadAll() {
     await loadLogs();
     await loadWarehouses();
+    await loadDrivers();
     await loadRate();
   }
 
@@ -368,6 +442,45 @@
     const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .filter(l => l.exit_time)
       .sort((a, b) => b.exit_time?.seconds - a.exit_time?.seconds);
+    window._allLogs = logs;
+    populateDriverFilters(logs);
+    renderLogTables();
+  }
+
+  // Fill both "filter by driver" dropdowns from the distinct drivers seen in
+  // the logs. Keeps whatever driver is currently selected.
+  function populateDriverFilters(logs) {
+    const t = tDict[window.currentLang];
+    const seen = new Map();
+    logs.forEach(l => {
+      if (l.driver_id && !seen.has(l.driver_id)) {
+        seen.set(l.driver_id, l.driver_name || l.driver_email || l.driver_id);
+      }
+    });
+    let opts = `<option value="all">${t.fltAll}</option>`;
+    for (const [id, name] of seen) opts += `<option value="${id}">${name}</option>`;
+    ['driver-filter-overview', 'driver-filter-logs'].forEach(sid => {
+      const sel = document.getElementById(sid);
+      if (sel) { sel.innerHTML = opts; sel.value = window._driverFilter; }
+    });
+  }
+
+  // Called when either dropdown changes: sync both, then re-render.
+  window.applyDriverFilter = (val) => {
+    window._driverFilter = val;
+    ['driver-filter-overview', 'driver-filter-logs'].forEach(sid => {
+      const sel = document.getElementById(sid);
+      if (sel) sel.value = val;
+    });
+    renderLogTables();
+  };
+
+  // Render the stat cards + both log tables for the currently selected driver.
+  function renderLogTables() {
+    const all = window._allLogs || [];
+    const logs = window._driverFilter === 'all'
+      ? all
+      : all.filter(l => l.driver_id === window._driverFilter);
 
     document.getElementById('stat-total').textContent = logs.length;
     const totalMinutes = logs.reduce((s, l) => s + (l.billable_minutes ?? l.total_wait_minutes ?? 0), 0);
@@ -375,7 +488,6 @@
     document.getElementById('stat-minutes').textContent = totalMinutes;
     document.getElementById('stat-fees').textContent = '¥' + totalFees.toLocaleString();
 
-    window._allLogs = logs;
     document.getElementById('overview-logs').innerHTML = buildTable(logs.slice(0, 10));
     document.getElementById('all-logs').innerHTML = buildTable(logs);
   }
@@ -385,6 +497,7 @@
     if (logs.length === 0) return `<p style="color:#a0a0b0;padding:20px">${t.noRecords}</p>`;
     return `<table>
       <thead><tr>
+        <th>${t.thDriver}</th>
         <th>${t.thWh}</th>
         <th>${t.thEntry}</th>
         <th>${t.thExit}</th>
@@ -401,6 +514,7 @@
           ? `<span class="badge review">${t.statReview}</span>`
           : `<span class="badge ${l.fee > 0 ? 'billable' : 'free'}">${l.fee > 0 ? t.statBill : t.statFree}</span>`;
         return `<tr class="${needsReview ? 'needs-review' : ''}">
+          <td>${l.driver_name || l.driver_email || '—'}</td>
           <td>${l.warehouse_name || '-'}</td>
           <td>${l.entry_time ? new Date(l.entry_time.seconds * 1000).toLocaleString('ja-JP') : '-'}</td>
           <td>${l.exit_time ? new Date(l.exit_time.seconds * 1000).toLocaleString('ja-JP') : '-'}</td>
@@ -463,14 +577,98 @@
     }
   };
 
+  // --- DRIVERS ---
+
+  async function loadDrivers() {
+    const myCompany = window._myProfile && window._myProfile.company_id;
+    const snap = await getDocs(collection(db, 'users'));
+    const drivers = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(u => u.role === 'driver' && (!myCompany || u.company_id === myCompany))
+      .sort((a, b) => (a.username || '').localeCompare(b.username || ''));
+    window._allDrivers = drivers;
+    renderDrivers(drivers);
+  }
+
+  function renderDrivers(drivers) {
+    const t = tDict[window.currentLang];
+    const emailHdr = window.currentLang === 'ja' ? 'メール' : 'Email';
+    if (!drivers || drivers.length === 0) {
+      document.getElementById('driver-list').innerHTML = `<p style="color:#a0a0b0;padding:20px">${t.noDrivers}</p>`;
+      return;
+    }
+    document.getElementById('driver-list').innerHTML = `<table>
+      <thead><tr><th>${t.thName}</th><th>${emailHdr}</th><th>${t.thRole}</th><th>${t.thAction}</th></tr></thead>
+      <tbody>${drivers.map(d => `<tr>
+        <td>${d.username || '—'}</td>
+        <td>${d.email || '—'}</td>
+        <td>${t.roleDriver}</td>
+        <td><button class="btn" style="background:#4f8ef722;color:#4f8ef7;border:1px solid #4f8ef7" onclick="sendReset('${(d.email || '').replace(/'/g, "\\'")}')">${t.btnReset}</button></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }
+
+  window.addDriver = async () => {
+    const t = tDict[window.currentLang];
+    const name = document.getElementById('d-name').value.trim();
+    const email = document.getElementById('d-email').value.trim();
+    const pass = document.getElementById('d-pass').value;
+    if (!name || !email || !pass || pass.length < 6) { alert(t.alertDriverFields); return; }
+    const companyId = (window._myProfile && window._myProfile.company_id) || null;
+    try {
+      // Create the login on the SECONDARY app so the dispatcher's session stays.
+      const cred = await createUserWithEmailAndPassword(secondaryAuth, email, pass);
+      const uid = cred.user.uid;
+      await setDoc(doc(db, 'users', uid), {
+        username: name,
+        role: 'driver',
+        company_id: companyId,
+        email: email,
+        created_at: serverTimestamp()
+      });
+      await signOut(secondaryAuth); // don't keep the new driver signed in anywhere
+      document.getElementById('d-name').value = '';
+      document.getElementById('d-email').value = '';
+      document.getElementById('d-pass').value = '';
+      const msg = document.getElementById('driver-added');
+      msg.textContent = t.driverAdded;
+      msg.style.display = 'block';
+      setTimeout(() => { msg.style.display = 'none'; }, 8000);
+      await loadDrivers();
+    } catch (e) {
+      const map = {
+        'auth/email-already-in-use': t.errEmailInUse,
+        'auth/invalid-email': t.errBadEmail,
+        'auth/weak-password': t.errWeakPass
+      };
+      alert(map[e.code] || e.message);
+    }
+  };
+
+  window.sendReset = async (email) => {
+    const t = tDict[window.currentLang];
+    if (!email) return;
+    if (!confirm(t.resetConfirm)) return;
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert(t.resetSent);
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
   window.exportCSV = () => {
     const t = tDict[window.currentLang];
-    const logs = window._allLogs || [];
+    // Export exactly what the current driver filter is showing.
+    const all = window._allLogs || [];
+    const logs = window._driverFilter === 'all'
+      ? all
+      : all.filter(l => l.driver_id === window._driverFilter);
     // Dynamic headers based on current language
-    const rows = [[t.thWh, t.thEntry, t.thExit, t.thTotal, t.thBill, t.thFee]];
-    
+    const rows = [[t.thDriver, t.thWh, t.thEntry, t.thExit, t.thTotal, t.thBill, t.thFee]];
+
     logs.forEach(l => {
       rows.push([
+        l.driver_name || l.driver_email || '',
         l.warehouse_name || '',
         l.entry_time ? new Date(l.entry_time.seconds * 1000).toLocaleString('ja-JP') : '',
         l.exit_time ? new Date(l.exit_time.seconds * 1000).toLocaleString('ja-JP') : '',
@@ -479,7 +677,10 @@
         l.fee || 0
       ]);
     });
-    const csv = rows.map(r => r.join(',')).join('\n');
+    // Wrap every field in quotes (and escape internal quotes) so a comma in a
+    // name or warehouse can't shift the columns.
+    const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = rows.map(r => r.map(esc).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
