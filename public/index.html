@@ -49,6 +49,7 @@
     .warehouse-form { background: #1a1a2e; border-radius: 16px; padding: 20px; border: 1px solid #2a2a3e; max-width: 500px; margin-bottom: 24px; }
     .warehouse-form h3 { font-size: 16px; font-weight: bold; margin-bottom: 16px; }
     .warehouse-form input { width: 100%; background: #0f0f1a; border: 1px solid #2a2a3e; border-radius: 8px; padding: 10px 12px; color: #fff; font-size: 14px; margin-bottom: 10px; }
+    .warehouse-form select { width: 100%; background: #0f0f1a; border: 1px solid #2a2a3e; border-radius: 8px; padding: 10px 12px; color: #fff; font-size: 14px; margin-bottom: 10px; cursor: pointer; }
     .loading { color: #a0a0b0; text-align: center; padding: 40px; }
     .filter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
     .filter-row label { font-size: 14px; color: #a0a0b0; }
@@ -85,6 +86,7 @@
     <button id="nav-logs" onclick="showTab('logs')">📋 Wait Logs</button>
     <button id="nav-warehouses" onclick="showTab('warehouses')">📦 Warehouses</button>
     <button id="nav-drivers" onclick="showTab('drivers')">👤 Drivers</button>
+    <button id="nav-schedules" onclick="showTab('schedules')">📅 Schedules</button>
     <button id="nav-settings" onclick="showTab('settings')">⚙️ Settings</button>
     <button id="nav-signout" onclick="doLogout()" style="margin-left:auto;color:#e74c3c;border-color:#e74c3c">Sign Out</button>
   </div>
@@ -160,6 +162,23 @@
       <div id="driver-list"><div class="loading">Loading...</div></div>
     </div>
 
+    <div id="tab-schedules" class="tab">
+      <p class="section-title" id="t-sec-schedules">Schedules</p>
+      <div class="warehouse-form">
+        <h3 id="t-add-sched">➕ Assign Schedule to Driver</h3>
+        <select id="s-driver"></select>
+        <select id="s-wh"></select>
+        <input type="datetime-local" id="s-time" />
+        <button class="btn btn-primary" id="btn-add-sched" onclick="addSchedule()">Assign</button>
+        <p style="color:#2ecc71;font-size:13px;margin-top:8px;display:none" id="sched-added"></p>
+      </div>
+      <div class="filter-row">
+        <label id="t-flt-3">Driver:</label>
+        <select id="sched-driver-filter" onchange="renderSchedules()"></select>
+      </div>
+      <div id="schedule-list"><div class="loading">Loading...</div></div>
+    </div>
+
     <div id="tab-settings" class="tab">
       <p class="section-title" id="t-sec-rate">Rate Settings</p>
       <div class="rate-card">
@@ -191,7 +210,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
-  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+  import { getFirestore, collection, getDocs, addDoc, deleteDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCA1frEfEz36Qd2ipHGsWIO9_827SE6pmc",
@@ -238,7 +257,14 @@
       driverAdded: "✅ Driver added. They can sign in with the temporary password, or use \"Send Reset Email\" so they set their own.",
       resetSent: "Password reset email sent.", resetConfirm: "Send a password-reset email to this driver?",
       alertDriverFields: "Please enter a name, a login email, and a temporary password of at least 6 characters.",
-      errEmailInUse: "That email is already registered.", errBadEmail: "That email address looks invalid.", errWeakPass: "Password must be at least 6 characters."
+      errEmailInUse: "That email is already registered.", errBadEmail: "That email address looks invalid.", errWeakPass: "Password must be at least 6 characters.",
+      navSchedules: "📅 Schedules", secSchedules: "Schedules", addSchedH: "➕ Assign Schedule to Driver",
+      optPickDriver: "— Select driver —", optPickWh: "— Select warehouse —", btnAssign: "Assign",
+      thAppt: "Appointment", thCreatedBy: "Added by", cbDriver: "Driver", cbDispatcher: "Dispatcher",
+      stPending: "Pending", stCompleted: "Completed", stDeleted: "Deleted", btnRestore: "Restore",
+      noSchedules: "No schedules yet.", schedAdded: "✅ Schedule assigned.",
+      alertSchedFields: "Please choose a driver, a warehouse, and a date/time.",
+      restoreConfirm: "Restore this deleted schedule (back to Pending)?"
     },
     ja: {
       appTitle: "🚛 待機時間マネージャー | 運行管理者ダッシュボード",
@@ -263,7 +289,14 @@
       driverAdded: "✅ ドライバーを追加しました。仮パスワードでログインするか、「リセットメール送信」で本人がパスワードを設定できます。",
       resetSent: "パスワードリセットのメールを送信しました。", resetConfirm: "このドライバーにパスワードリセットのメールを送信しますか？",
       alertDriverFields: "名前、ログイン用メール、6文字以上の仮パスワードを入力してください。",
-      errEmailInUse: "このメールアドレスは既に登録されています。", errBadEmail: "メールアドレスの形式が正しくありません。", errWeakPass: "パスワードは6文字以上にしてください。"
+      errEmailInUse: "このメールアドレスは既に登録されています。", errBadEmail: "メールアドレスの形式が正しくありません。", errWeakPass: "パスワードは6文字以上にしてください。",
+      navSchedules: "📅 予定", secSchedules: "配送予定", addSchedH: "➕ ドライバーに予定を割り当て",
+      optPickDriver: "— ドライバーを選択 —", optPickWh: "— 倉庫を選択 —", btnAssign: "割り当て",
+      thAppt: "予約日時", thCreatedBy: "登録者", cbDriver: "ドライバー", cbDispatcher: "管理者",
+      stPending: "予定", stCompleted: "完了", stDeleted: "削除済み", btnRestore: "復元",
+      noSchedules: "予定はありません。", schedAdded: "✅ 予定を割り当てました。",
+      alertSchedFields: "ドライバー、倉庫、日時を選択してください。",
+      restoreConfirm: "この削除済みの予定を復元しますか？（予定に戻します）"
     }
   };
 
@@ -284,6 +317,10 @@
     }
     if(window._allDrivers) {
       renderDrivers(window._allDrivers);
+    }
+    if(window._allSchedules) {
+      populateScheduleControls();
+      renderSchedules();
     }
   };
 
@@ -340,6 +377,13 @@
     document.getElementById('d-pass').placeholder = t.pDriverPass;
     document.getElementById('t-help-driver').innerText = t.helpDriver;
     document.getElementById('btn-add-driver').innerText = t.btnAddDriver;
+
+    // Schedules Tab
+    document.getElementById('nav-schedules').innerText = t.navSchedules;
+    document.getElementById('t-sec-schedules').innerText = t.secSchedules;
+    document.getElementById('t-add-sched').innerText = t.addSchedH;
+    document.getElementById('btn-add-sched').innerText = t.btnAssign;
+    document.getElementById('t-flt-3').innerText = t.fltLabel;
 
     // Settings Tab
     document.getElementById('t-sec-rate').innerText = t.secRate;
@@ -406,6 +450,7 @@
     await loadLogs();
     await loadWarehouses();
     await loadDrivers();
+    await loadSchedules();
     await loadRate();
   }
 
@@ -651,6 +696,126 @@
     try {
       await sendPasswordResetEmail(auth, email);
       alert(t.resetSent);
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  // --- SCHEDULES ---
+
+  async function loadSchedules() {
+    const myCompany = window._myProfile && window._myProfile.company_id;
+    const snap = await getDocs(collection(db, 'schedules'));
+    const scheds = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(s => (!myCompany || s.company_id === myCompany))
+      .sort((a, b) => (b.appointment_time?.seconds || 0) - (a.appointment_time?.seconds || 0));
+    window._allSchedules = scheds;
+    populateScheduleControls();
+    renderSchedules();
+  }
+
+  // Fill the assign-form driver/warehouse dropdowns + the list's driver filter.
+  function populateScheduleControls() {
+    const t = tDict[window.currentLang];
+    const drivers = window._allDrivers || [];
+    const warehouses = window._allWarehouses || [];
+    const driverOpts = drivers.map(d => `<option value="${d.id}">${d.username || d.email || d.id}</option>`).join('');
+
+    const sDriver = document.getElementById('s-driver');
+    if (sDriver) sDriver.innerHTML = `<option value="">${t.optPickDriver}</option>` + driverOpts;
+
+    const sWh = document.getElementById('s-wh');
+    if (sWh) sWh.innerHTML = `<option value="">${t.optPickWh}</option>` +
+      warehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+
+    const filt = document.getElementById('sched-driver-filter');
+    if (filt) {
+      const cur = filt.value || 'all';
+      filt.innerHTML = `<option value="all">${t.fltAll}</option>` + driverOpts;
+      filt.value = cur;
+    }
+  }
+
+  function renderSchedules() {
+    const t = tDict[window.currentLang];
+    const all = window._allSchedules || [];
+    const filt = document.getElementById('sched-driver-filter');
+    const sel = filt ? filt.value : 'all';
+    const scheds = sel === 'all' ? all : all.filter(s => s.driver_id === sel);
+
+    if (scheds.length === 0) {
+      document.getElementById('schedule-list').innerHTML = `<p style="color:#a0a0b0;padding:20px">${t.noSchedules}</p>`;
+      return;
+    }
+    const driverName = (id, fallback) => {
+      const d = (window._allDrivers || []).find(x => x.id === id);
+      return d ? (d.username || d.email || id) : (fallback || id || '—');
+    };
+    const fmt = (ts) => ts ? new Date((ts.seconds || 0) * 1000).toLocaleString('ja-JP') : '—';
+    const statusBadge = (s) => {
+      if (s.status === 'completed') return `<span class="badge free">${t.stCompleted}</span>`;
+      if (s.status === 'deleted') return `<span class="badge billable">${t.stDeleted}</span>`;
+      return `<span class="badge review">${t.stPending}</span>`;
+    };
+    document.getElementById('schedule-list').innerHTML = `<table>
+      <thead><tr>
+        <th>${t.thDriver}</th><th>${t.thWh}</th><th>${t.thAppt}</th>
+        <th>${t.thCreatedBy}</th><th>${t.thStat}</th><th>${t.thAction}</th>
+      </tr></thead>
+      <tbody>${scheds.map(s => `<tr>
+        <td>${driverName(s.driver_id, s.driver_email)}</td>
+        <td>${s.warehouse_name || '—'}</td>
+        <td>${fmt(s.appointment_time)}</td>
+        <td>${s.created_by === 'dispatcher' ? t.cbDispatcher : t.cbDriver}</td>
+        <td>${statusBadge(s)}</td>
+        <td>${s.status === 'deleted'
+          ? `<button class="btn" style="background:#2ecc7122;color:#2ecc71;border:1px solid #2ecc71" onclick="restoreSchedule('${s.id}')">${t.btnRestore}</button>`
+          : ''}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }
+
+  window.addSchedule = async () => {
+    const t = tDict[window.currentLang];
+    const driverId = document.getElementById('s-driver').value;
+    const whId = document.getElementById('s-wh').value;
+    const timeStr = document.getElementById('s-time').value;
+    if (!driverId || !whId || !timeStr) { alert(t.alertSchedFields); return; }
+    const wh = (window._allWarehouses || []).find(w => w.id === whId);
+    const drv = (window._allDrivers || []).find(d => d.id === driverId);
+    const companyId = (window._myProfile && window._myProfile.company_id) || null;
+    try {
+      await addDoc(collection(db, 'schedules'), {
+        driver_id: driverId,
+        driver_email: drv ? (drv.email || null) : null,
+        driver_name: drv ? (drv.username || null) : null,
+        company_id: companyId,
+        created_by: 'dispatcher',
+        warehouse_id: whId,
+        warehouse_name: wh ? wh.name : '',
+        appointment_time: new Date(timeStr),
+        status: 'pending',
+        created_at: serverTimestamp()
+      });
+      document.getElementById('s-driver').value = '';
+      document.getElementById('s-wh').value = '';
+      document.getElementById('s-time').value = '';
+      const msg = document.getElementById('sched-added');
+      msg.textContent = t.schedAdded;
+      msg.style.display = 'block';
+      setTimeout(() => { msg.style.display = 'none'; }, 5000);
+      await loadSchedules();
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  window.restoreSchedule = async (id) => {
+    const t = tDict[window.currentLang];
+    if (!confirm(t.restoreConfirm)) return;
+    try {
+      await updateDoc(doc(db, 'schedules', id), { status: 'pending', deleted_at: null, deleted_by: null });
+      await loadSchedules();
     } catch (e) {
       alert(e.message);
     }
